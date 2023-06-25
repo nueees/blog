@@ -13,8 +13,6 @@ toc: false
 
 [따배씨](https://www.youtube.com/watch?v=dv_5WCYS5P8&list=PLApuRlvrZKojqx9-wIvWP3MPtgy2B372f&index=4)
 
----
-
 
 # 1. Control Plane
 
@@ -51,7 +49,7 @@ volumes:
 
 
 # 2. Worker Node
----
+
 ## 2.1. Creating Pod
 
 ```
@@ -59,7 +57,7 @@ volumes:
 ] kubectl -n ecommerce run eshop-main --image=nginx:1.17 --env=DB=mysql
 ```
 
----
+
 ## 2.2. Creating Static Pod
 Static Pod : directly access to kubelet in worker node without control plane API
 ### yaml code extraction for web-pod
@@ -81,7 +79,7 @@ add saved output in the above step
 ```
 
 
----
+
 ## 2.3. Creating Multi-container Pod
 
 ```
@@ -99,7 +97,7 @@ spec:
 ] kubectl describe pod lab004
 ```
 
----
+
 ## 2.4. Creating Sidecar container
 
 Sidecar Container: built-in logging architecture  
@@ -146,7 +144,7 @@ spec:
 ```
 
 
----
+
 ## 2.5. Deployment & Pod Scale
 
 [scale reference docs](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#scale)
@@ -186,4 +184,4 @@ spec:
 ] kubectl get pods --show-labels
 ```
 
----
+
