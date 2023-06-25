@@ -1,1 +1,1 @@
-Sitemap: https://2fc93945-8a33-4f16-88a7-5c2ac1e06cca.netlify.app/sitemap.xml
+Sitemap: https://nueees.quarto.pub/blog/sitemap.xml

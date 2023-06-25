@@ -56,6 +56,20 @@
     "text": "2.5. Deployment & Pod Scale\nscale reference docs\n\nPod scale out\n] kubectl -n devops get pod deployments.apps\n] kubectl -n devops scale deployment eshop-order --replicas=5\n] kubectl -n devops get deploy\n\n\ncreate and scale out deployment\n] kubectl create deployment webserver --image=nginx:1.14 --replicas=2 --dry-run=client -o yaml &gt; webserver.yaml\n] vi webserver.yaml\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app_env_stage=dev\n  template:\n    metadata:\n      labels:\n        app_env_stage=dev\n    spec:\n      containers:\n      - image: nginx:1.14\n        name: webserver\n        ports:\n        - containerPort: 80\n] kubectl apply -f webserver.yaml\n] kubectl get deployments.apps -o wide\n] kubectl scale deployment webserver --replicas=3\n] kubectl get pods --show-labels"
   },
   {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#rolling-update-roll-back",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#rolling-update-roll-back",
+    "title": "Certified Kubernetes Administrator",
+    "section": "2.6. rolling update & roll back",
+    "text": "2.6. rolling update & roll back\n\nrolling update\n] kubectl create deployment nginx-app --image=nginx:1.11.10-alpine --replicas=3 --dry-run=client -o yaml &gt; nginx-app.yaml\n] vi nginx-app.yaml\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: nginx-app\n  template:\n    metadata:\n      labels:\n        app: nginx-app\n    spec:\n      containers:\n      - image: nginx:1.11.10-alpine\n        name: nginx\n] kubectl create deployment nginx-app --image=nginx:1.11.10-alpine --replicas=3\n] kubectl set image deployment/nginx-app nginx(container name)=nginx:1.11.13-alpine(container image)\n] kubectl rollout status deployment/nginx-app # check the status\n] kubectl rollout history deployment/nginx-app # check the history\n\n\nroll back\n] kubectl rollout undo deployment/nginx-app --to-revision=2 (go back to specific version)\n] kubectl rollout history deployment/nginx-app"
+  },
+  {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#node-selector",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#node-selector",
+    "title": "Certified Kubernetes Administrator",
+    "section": "2.7. node selector",
+    "text": "2.7. node selector\n\nlist and watch filtering\n] kubectl get nodes --show-labels\n] kubectl get nodes -L disktype (check only disktype column)\n] kubectl run eshop-store --image=nginx --dry-run=client -o yaml &gt; eshop-store.yaml\n] vi eshop-store.yaml\nmetadata:\n  name: eshop-store\nspec:\n  containers:\n  - image: nginx\n    name: eshop-store\n\n\nadd a label to a node\nmetadata:\n  name: eshop-store\nspec:\n  containers:\n  - image: nginx\n    name: eshop-store\n&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;\n  nodeSelector:\n    disktype: ssd\n&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;\n] kubectl apply -f eshop-store.yaml\n] kubectl get pods -o wide eshop-store"
+  },
+  {
     "objectID": "about.html",
     "href": "about.html",
     "title": "About",

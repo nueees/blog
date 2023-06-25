@@ -184,4 +184,66 @@ spec:
 ] kubectl get pods --show-labels
 ```
 
+## 2.6. rolling update & roll back
+### [rolling update](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#updating-a-deployment)
+```
+] kubectl create deployment nginx-app --image=nginx:1.11.10-alpine --replicas=3 --dry-run=client -o yaml > nginx-app.yaml
+] vi nginx-app.yaml
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-app
+  template:
+    metadata:
+      labels:
+        app: nginx-app
+    spec:
+      containers:
+      - image: nginx:1.11.10-alpine
+        name: nginx
+] kubectl create deployment nginx-app --image=nginx:1.11.10-alpine --replicas=3
+] kubectl set image deployment/nginx-app nginx(container name)=nginx:1.11.13-alpine(container image)
+] kubectl rollout status deployment/nginx-app # check the status
+] kubectl rollout history deployment/nginx-app # check the history
+```
 
+### [roll back](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-to-a-previous-revision)
+```
+] kubectl rollout undo deployment/nginx-app --to-revision=2 (go back to specific version)
+] kubectl rollout history deployment/nginx-app
+```
+
+## 2.7. node selector
+### [list and watch filtering](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#list-and-watch-filtering)
+```
+] kubectl get nodes --show-labels
+] kubectl get nodes -L disktype (check only disktype column)
+```
+
+```
+] kubectl run eshop-store --image=nginx --dry-run=client -o yaml > eshop-store.yaml
+] vi eshop-store.yaml
+metadata:
+  name: eshop-store
+spec:
+  containers:
+  - image: nginx
+    name: eshop-store
+```
+
+### [add a label to a node](https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/#add-a-label-to-a-node)
+```
+metadata:
+  name: eshop-store
+spec:
+  containers:
+  - image: nginx
+    name: eshop-store
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  nodeSelector:
+    disktype: ssd
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+] kubectl apply -f eshop-store.yaml
+] kubectl get pods -o wide eshop-store
+```
