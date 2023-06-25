@@ -1,0 +1,79 @@
+[
+  {
+    "objectID": "posts/welcome/index.html",
+    "href": "posts/welcome/index.html",
+    "title": "Welcome To My Blog",
+    "section": "",
+    "text": "This is the first post in a Quarto blog. Welcome!\n\nSince this post doesn’t specify an explicit image, the first image in the post will be used in the listing page of posts."
+  },
+  {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html",
+    "title": "Certified Kubernetes Administrator",
+    "section": "",
+    "text": "따배씨"
+  },
+  {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#etcd-backuprestore",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#etcd-backuprestore",
+    "title": "Certified Kubernetes Administrator",
+    "section": "1.1. ETCD Backup&Restore",
+    "text": "1.1. ETCD Backup&Restore\n] ssh k8s-master\n] etcd --version\n] etcdctl version\n\nsnapshot using etcdctl options\n] sudo ETCDCTL_API=3 etcdctl \\\n  --endpoints=https://127.0.0.1:2379 \\\n  --cacert=&lt;trusted-ca-file&gt; \\\n  --cert=&lt;cert-file&gt; --key=&lt;key-file&gt; \\\n  snapshot save &lt;backup-file-location&gt;\nSnapshot saved at &lt;backup-file-location&gt;\n\n\nrestoring an etcd cluster\n] sudo ETCDCTL_API=3 etcdctl snapshot restore \\\n  --data-dir &lt;new-data-dir-location&gt; &lt;backup-file-location&gt;\n] sudo vi /etc/kubernetes/manifests/etcd.yaml\nvolumes:\n  - hostPath:\n    path: /var/lib/&lt;new-data-dir-location&gt; # edit\n] sudo docker ps -a | grep etcd"
+  },
+  {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#creating-pod",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#creating-pod",
+    "title": "Certified Kubernetes Administrator",
+    "section": "2.1. Creating Pod",
+    "text": "2.1. Creating Pod\n] kubectl create namespace ecommerce\n] kubectl -n ecommerce run eshop-main --image=nginx:1.17 --env=DB=mysql"
+  },
+  {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#creating-static-pod",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#creating-static-pod",
+    "title": "Certified Kubernetes Administrator",
+    "section": "2.2. Creating Static Pod",
+    "text": "2.2. Creating Static Pod\nStatic Pod : directly access to kubelet in worker node without control plane API ### yaml code extraction for web-pod\n] kubectl -n ecommerce run web --image=nginx:1.17 -o yaml\nsave ouptut\n] ssh hk8s-w1\n] sudo -i # root mode\n] cat /var/lib/kubelet/config.yaml\nstaticPodPath: /etc/kubernetes/manifests\n] cd /etc/kubernetes/manifests\n] cat &gt; web-pod.yaml\nadd saved output in the above step\n] exit\n] kubectl get pods # check the static pod"
+  },
+  {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#creating-multi-container-pod",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#creating-multi-container-pod",
+    "title": "Certified Kubernetes Administrator",
+    "section": "2.3. Creating Multi-container Pod",
+    "text": "2.3. Creating Multi-container Pod\n] kubectl run lab004 --image=nginx --dry-run=client -o yaml\n] cat &gt; multi.yaml\nspec:\n  containers:\n  - image: nginx\n    name: nginx\n  - image: redis\n    name: redis\n  - image: memcached\n    name: memcached\n] kubectl apply -f multi.yaml\n] kubectl describe pod lab004"
+  },
+  {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#creating-sidecar-container",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#creating-sidecar-container",
+    "title": "Certified Kubernetes Administrator",
+    "section": "2.4. Creating Sidecar container",
+    "text": "2.4. Creating Sidecar container\nSidecar Container: built-in logging architecture\n1) log /var/log/html in nginx container (main container)\n2) store the log to a separated volume in /varlog\n3) access /varlog in side-car container(log analyzing purpose)\n] kubectl get pod eshop-cart-app # main container\n] kubectl get pod eshop-cart-app -o yaml &gt; eshop.yaml\n\n\nsidecar container with logging agent\n] vi eshop.yaml\nspec:\n  containers:\n  - command:\n    - /bin/sh\n    - -c\n    - 'i=1;while :;do  echo -e \"$i: Price: $((RANDOM % 10000 + 1))\" &gt;&gt; /var/log/cart-app.log;i=$((i+1)); sleep 2; done'\n    image: busybox\n    name: cart-app\n    volumeMounts:\n    - mountPath: /var/log\n      name: varlog\n&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;\n  - name: sidecar\n    image: busybox\n    args: [/bin/sh, -c, 'tail -n+1 -F /var/log/cart-app.log']\n    volumeMounts:\n    - name: varlog\n      mountPath: /var/log\n&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;\n  volumes:\n  - emptyDir: {}\n    name: varlog\n\n] kubectl delete pod eshop-cart-app # (--force)\n] kubectl apply -f eshop.yaml\n] kubectl logs eshop-cart-app -c sidecar"
+  },
+  {
+    "objectID": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#deployment-pod-scale",
+    "href": "posts/2023-06-23-Certified-Kubernetes-Administrator.html#deployment-pod-scale",
+    "title": "Certified Kubernetes Administrator",
+    "section": "2.5. Deployment & Pod Scale",
+    "text": "2.5. Deployment & Pod Scale\nscale reference docs\n\nPod scale out\n] kubectl -n devops get pod deployments.apps\n] kubectl -n devops scale deployment eshop-order --replicas=5\n] kubectl -n devops get deploy\n\n\ncreate and scale out deployment\n] kubectl create deployment webserver --image=nginx:1.14 --replicas=2 --dry-run=client -o yaml &gt; webserver.yaml\n] vi webserver.yaml\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app_env_stage=dev\n  template:\n    metadata:\n      labels:\n        app_env_stage=dev\n    spec:\n      containers:\n      - image: nginx:1.14\n        name: webserver\n        ports:\n        - containerPort: 80\n] kubectl apply -f webserver.yaml\n] kubectl get deployments.apps -o wide\n] kubectl scale deployment webserver --replicas=3\n] kubectl get pods --show-labels"
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this blog"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "blog",
+    "section": "",
+    "text": "Post With Code\n\n\n\n\n\n\n\nnews\n\n\ncode\n\n\nanalysis\n\n\n\n\n\n\n\n\n\n\n\nJun 25, 2023\n\n\nHarlow Malloc\n\n\n\n\n\n\n  \n\n\n\n\nCertified Kubernetes Administrator\n\n\n\n\n\n\n\nkubernetes\n\n\n\n\nCertified Kubernetes Administrator\n\n\n\n\n\n\nJun 23, 2023\n\n\n\n\n\n\n  \n\n\n\n\nWelcome To My Blog\n\n\n\n\n\n\n\nnews\n\n\n\n\n\n\n\n\n\n\n\nJun 22, 2023\n\n\nTristan O’Malley\n\n\n\n\n\n\nNo matching items"
+  },
+  {
+    "objectID": "posts/post-with-code/index.html",
+    "href": "posts/post-with-code/index.html",
+    "title": "Post With Code",
+    "section": "",
+    "text": "This is a post with executable code."
+  }
+]

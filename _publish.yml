@@ -1,0 +1,4 @@
+- source: project
+  quarto-pub:
+    - id: 2fc93945-8a33-4f16-88a7-5c2ac1e06cca
+      url: 'https://nueees.quarto.pub/blog'
