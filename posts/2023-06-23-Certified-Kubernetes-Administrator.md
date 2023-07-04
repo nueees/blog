@@ -247,3 +247,51 @@ spec:
 ] kubectl apply -f eshop-store.yaml
 ] kubectl get pods -o wide eshop-store
 ```
+
+
+## 2.8. node management
+
+### [manual node administration](https://kubernetes.io/docs/concepts/architecture/nodes/#manual-node-administration)
+```
+] kubectl get nodes -o wide | grep worker1
+] kubectl describe node k8s-worker1
+] kubectl cordon k8s-worker1 # SchedulingDisabled on worker1 node
+NAME          STATUS
+k8s-worker1   Ready,SchedulingDisabled
+] kubectl scale deployment nginx --replicas=6
+] kubectl get pods -o wide # only deployed in worker2 node
+```
+```
+] kubectl uncordon k8s-worker1
+] kubectl get nodes -o wide
+NAME          STATUS
+k8s-worker1   Ready
+```
+
+### [remove a node from service](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/#use-kubectl-drain-to-remove-a-node-from-service)
+```
+] kubectl drain k8s-worker2 # relocate all pods from worker2 to worker1 # daemonsets running only specified worker2 node cannot be deleted
+] kubectl drain k8s-worker2 --ignore-daemonsets # ignore daemonset e.g. kube-system/kube-flannel, kube-proxy
+] kubectl drain k8s-worker2 --ignore-daemonsets --force # continue even if there are pods not managed by a ReplicationController, Job, or DaemonSet
+] kubectl drain k8s-worker2 --ignore-daemonsets --force --delete-emptydir-data # approve to drain pods with local storage
+] kubectl get nodes -o wide
+NAME          STATUS
+k8s-worker2   Ready,SchedulingDisabled
+```
+```
+] kubectl uncordon k8s-worker2
+] kubectl get nodes -o wide
+NAME          STATUS
+k8s-worker2   Ready
+] kubectl scale deployment nginx --replicas=1
+] kubectl scale deployment nginx --replicas=3
+] kubectl get pods -o wide # only deployed in worker2 node
+```
+
+
+
+## 2.9. collect node metrics
+
+```
+] kubectl get nodes | grep -i -w ready
+```
