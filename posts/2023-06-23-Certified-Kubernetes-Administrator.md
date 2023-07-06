@@ -290,8 +290,78 @@ k8s-worker2   Ready
 
 
 
-## 2.9. collect node metrics
+## 2.9. collect node info
 
 ```
-] kubectl get nodes | grep -i -w ready
+] kubectl get nodes | grep -iw ready
+k8s-master    Ready    control-plane,master   121d   v1.24.10
+k8s-worker1   Ready    <none>                 121d   v1.24.10
+] kubectl get nodes | grep -iw ready | wc -l > /var/CKA2023/RN0001
 ```
+```
+] kubectl describe node k8s-master | grep -i NoSchedule
+Taints:             node-role.kubernetes.io/master:NoSchedule
+] kubectl describe node k8s-worker1 | grep -i NoSchedule
+] kubectl describe node k8s-worker1 | grep -i taints
+Taints:             <none>
+] echo "1" > /var/CKA2023/RN0001
+```
+
+
+## 2.10. deployment & expose the service
+
+### [field spec ports](https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports)
+```
+] kubectl get deployments.apps front-end -o yaml > front-end.yaml
+] vi front-end.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front-end
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx:stable
+        name: nginx
+        ports:
+        - containerPort: 80
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: front-end-svc
+spec:
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  type: NodePort
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  selector:
+    run: nginx
+  ports:
+  - name: nginx-http
+    protocol: TCP
+    port: 80
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    targetPort: http # not 80 since the port named http
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+```
+
+```
+] kubectl get deployments.apps front-end
+] kubectl get svc front-end-svc
+] curl k8s-worker1:31779 #nodename:nodeport
+```
+
+
+
+
+
+
