@@ -362,6 +362,103 @@ spec:
 
 
 
+## 2.11. extract pod log
 
+### [logging architecture](https://kubernetes.io/docs/concepts/cluster-administration/logging/)
+```
+] kubectl get pods custom-app
+] kubectl logs custom-app | grep 'file not found' > /var/CKA2023/podlog
+] cat /var/CKA2023/podlog
+```
+
+### [reference logs](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#logs)
+```
+] kubectl logs custom-app --all-containers=true
+] kubectl logs custom-app -p -c ruby web-1 # in previous terminated, container ruby
+```
+
+
+
+## 2.12. check pods overloaded cpu
+
+### [reference tops](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#top)
+```
+] kubectl top nodes
+] kubectl top pods
+] kubectl top pods -l name=overloaded-cpu
+] kubectl top pods -l name=overloaded-cpu --sort-by=cpu
+```
+
+
+## 2.13. init container
+specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image.  
+ Init containers always run to completion.  
+ Each init container must complete successfully before the next one starts.  
+
+### [init container in use](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use)
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-pod
+  labels:
+    app.kubernetes.io/name: MyApp
+spec:
+  containers:
+  - name: myapp-container
+    image: busybox:1.28
+    command: ['sh', '-c', 'echo The app is running! && sleep 3600']
+  initContainers:
+  - name: init-myservice
+    image: busybox:1.28
+    command: ['sh', '-c', "until nslookup myservice.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done"]
+  - name: init-mydb
+    image: busybox:1.28
+    command: ['sh', '-c', "until nslookup mydb.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for mydb; sleep 2; done"]
+```
+
+```
+] cat /data/cka/webpod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-pod
+  labels:
+    app.kubernetes.io/name: MyApp
+spec:
+  containers:
+  - name: main
+    image: busybox:1.28
+    command: ['sh', '-c', 'if [ !-f /workdir/data/txt ];then exit 1;else sleept 300;fi']
+    volumeMounts:
+    - name: workdir
+      mountPath: /workdir
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  initContainers:
+  - name: init
+    image: busybox:1.28
+    command: ['sh', '-c', 'touch /workdir/data.txt']
+    volumeMounts:
+    - name: workdir
+      mountPath: /workdir
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  volumes:
+  - name: workdir
+    emptyDir: {}
+] kubectl apply -f /data/cka/webpod.yaml
+] kubectl get pods
+] kubectl exec web-pod -c main -- ls -l /workdir/data.txt
+```
+
+
+## 2.14. create service nodeport
+
+### [nodeport](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport)
+Each node proxies that port (the same port number on every Node) into your Service. Your Service reports the allocated port in its .spec.ports[*].nodePort field.
+```
+] 
+] 
+] 
+```
 
 
