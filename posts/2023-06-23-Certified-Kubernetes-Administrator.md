@@ -456,9 +456,96 @@ spec:
 ### [nodeport](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport)
 Each node proxies that port (the same port number on every Node) into your Service. Your Service reports the allocated port in its .spec.ports[*].nodePort field.
 ```
-] 
-] 
-] 
+] kubectl get pod -l app=webui
+] kubectl get pod -l app=webui --show-labels
+] kubectl describe pod nginx-86f46f47c4-vfw8f
+Containers:
+  nginx:
+    Port: if not exist, default 80
+] cat my-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  type: NodePort
+  selector:
+    app: webui
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 32767
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+] kubectl apply -f my-service.yaml
+] kubectl get svc my-service
+] kubectl get node
+] curl k8s-worker1:32767 # check connection
 ```
+
+
+## 2.15. manage configMap
+
+### [create configmaps from literal values](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-literal-values)
+```
+] kubectl create ns ckad
+] kubectl get ns ckad
+] kubectl -n ckad create configmap web-config --from-literal=connection_string=localhost:80 --from-literal=external_url=cncf.io
+] kubectl -n ckad describe configmaps web-config
+```
+### opt1 [define a container env variable with data from a single configmap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#define-a-container-environment-variable-with-data-from-a-single-configmap)
+```
+] kubectl run web-pod --image=nginx:1.19.8-alpine --port=80 --dry-run=client -o yaml > web-pod.yaml
+] cat web-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: registry.k8s.io/busybox
+      command: [ "/bin/sh", "-c", "env" ]
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      env:
+        - name: CONNECTION_STRING
+          valueFrom:
+            configMapKeyRef:
+              name: web-config
+              key: connection_string
+        - name: EXTERNAL_URL
+          valueFrom:
+            configMapKeyRef:
+              name: web-config
+              key: external_url
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  restartPolicy: Never
+]
+```
+### opt2 [configure all key value pairs in a configmap as container env variables](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables)
+```
+] kubectl run web-pod --image=nginx:1.19.8-alpine --port=80 --dry-run=client -o yaml > web-pod.yaml
+] cat web-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: registry.k8s.io/busybox
+      command: [ "/bin/sh", "-c", "env" ]
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      envFrom:
+      - configMapRef:
+          name: special-config
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  restartPolicy: Never
+]
+```
+
+
+## 2.16. manage secret
+
 
 
