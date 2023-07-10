@@ -495,17 +495,17 @@ spec:
 ```
 ### opt1 [define a container env variable with data from a single configmap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#define-a-container-environment-variable-with-data-from-a-single-configmap)
 ```
-] kubectl run web-pod --image=nginx:1.19.8-alpine --port=80 --dry-run=client -o yaml > web-pod.yaml
+] kubectl -n ckad run web-pod --image=nginx:1.19.8-alpine --port=80 --dry-run=client -o yaml > web-pod.yaml
 ] cat web-pod.yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: dapi-test-pod
+  name: web-pod
+  namespace: ckad
 spec:
   containers:
-    - name: test-container
-      image: registry.k8s.io/busybox
-      command: [ "/bin/sh", "-c", "env" ]
+    - name: web-pod
+      image: nginx:1.19.8-alpine
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       env:
         - name: CONNECTION_STRING
@@ -519,33 +519,115 @@ spec:
               name: web-config
               key: external_url
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  restartPolicy: Never
-]
+      ports:
+      - containerPort: 80
+] kubectl apply -f web-pod.yaml
+] kubectl -n ckad exec web-pod -- env # check env
 ```
 ### opt2 [configure all key value pairs in a configmap as container env variables](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables)
 ```
-] kubectl run web-pod --image=nginx:1.19.8-alpine --port=80 --dry-run=client -o yaml > web-pod.yaml
-] cat web-pod.yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: dapi-test-pod
+  name: web-pod
+  namespace: ckad
 spec:
   containers:
-    - name: test-container
-      image: registry.k8s.io/busybox
-      command: [ "/bin/sh", "-c", "env" ]
+    - name: web-pod
+      image: nginx:1.19.8-alpine
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
       envFrom:
       - configMapRef:
-          name: special-config
+          name: web-config
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  restartPolicy: Never
-]
+      ports:
+      - containerPort: 80
+```
+
+### opt3 [add configmap data to a specific path in the volume](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#add-configmap-data-to-a-specific-path-in-the-volume)
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-pod
+  namespace: ckad
+spec:
+  containers:
+    - name: web-pod
+      image: nginx:1.19.8-alpine
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        name: web-config
+        items:
+        - key: CONNECTION_STRING
+          path: connection_string
+        - key: EXTERNAL_URL
+          path: external_url
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ```
 
 
 ## 2.16. manage secret
 
+### [define container env variables using secret data](https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#define-container-environment-variables-using-secret-data)
+```
+] kubectl create secret --help
+docker-registry
+generic
+tls
+] kubectl create secret generic super-secret --from-literal=password=secretpass
+] kubectl get secrets super-secret -o yaml
+```
 
+### opt1 [using secrets as file from a pod](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod)
+```
+] cat pod-secrets-via-file.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-secrets-via-file
+spec:
+  containers:
+  - name: mypod
+    image: redis
+    volumeMounts:
+    - name: foo
+      mountPath: "/secrets"
+      readOnly: true
+  volumes:
+  - name: foo
+    secret:
+      secretName: super-secret
+      optional: true
+] kubectl apply -f pod-secrets-via-file.yaml
+] kubectl exec pod-secrets-via-file -- env
+```
+
+### opt2 [using secrets as env variables](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables)
+```
+] cat pod-secrets-via-env.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-secrets-via-env
+spec:
+  containers:
+  - name: mypod
+    image: redis
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      env:
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: super-secret
+              key: password
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+] kubectl apply -f pod-secrets-via-env.yaml
+] kubectl exec pod-secrets-via-env -- env
+```
 
