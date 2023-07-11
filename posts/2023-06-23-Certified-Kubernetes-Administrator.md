@@ -14,7 +14,7 @@ toc: false
 [따배씨](https://www.youtube.com/watch?v=dv_5WCYS5P8&list=PLApuRlvrZKojqx9-wIvWP3MPtgy2B372f&index=4)
 
 
-# 1. Control Plane
+# 1. Control Plane (Master Node)
 
 ## 1.1. ETCD Backup&Restore
 
@@ -48,9 +48,79 @@ volumes:
 ```
 
 
+## 1.2. [upgrade kubernetes](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/)
+1.24.X -> 1.25.X
+```
+] kubectl get nodes
+NAME          STATUS   ROLES                  AGE    VERSION
+k8s-master    Ready    control-plane,master   126d   v1.24.10
+k8s-worker1   Ready    <none>                 126d   v1.24.10
+k8s-worker2   Ready    <none>                 126d   v1.24.10
+```
+
+### upgrade kubeadm
+```
+] sudo -i
+] apt update
+] apt-cache madison kubeadm # find the latest 1.25 version in the list (1.25.x-00, where x is the latest patch)
+] apt-mark unhold kubeadm && \
+  apt-get update && apt-get install -y kubeadm=1.25.x-00 && \
+  apt-mark hold kubeadm # replace x in 1.25.x-00 with the latest patch version
+] kubeadm version
+] kubeadm upgrade plan
+] sudo kubeadm upgrade apply v1.25.x # replace x with the patch version you picked for this upgrade
+```
+
+### drain the master node
+```
+] kubectl drain k8s-master --ignore-daemonsets
+] kubectl get nodes
+NAME          STATUS                     ROLES                  AGE    VERSION
+k8s-master    Ready,SchedulingDisabled   control-plane,master   126d   v1.24.10
+k8s-worker1   Ready                      <none>                 126d   v1.24.10
+k8s-worker2   Ready                      <none>                 126d   v1.24.10
+```
+
+### upgrade kubelet and kubectl
+```
+] apt-mark unhold kubelet kubectl && \
+  apt-get update && apt-get install -y kubelet=1.25.x-00 kubectl=1.25.x-00 && \
+  apt-mark hold kubelet kubectl # replace x in 1.25.x-00 with the latest patch version
+] sudo systemctl daemon-reload
+] sudo systemctl restart kubelet
+] kubectl uncordon k8s-master
+] kubectl get nodes
+NAME          STATUS                     ROLES                  AGE    VERSION
+k8s-master    Ready                      control-plane,master   126d   v1.25.x
+k8s-worker1   Ready                      <none>                 126d   v1.24.10
+k8s-worker2   Ready                      <none>                 126d   v1.24.10
+```
+
+
+### option: upgrade worker nodes
+```
+] apt-mark unhold kubeadm && \
+  apt-get update && apt-get install -y kubeadm=1.25.x-00 && \
+  apt-mark hold kubeadm # replace x in 1.25.x-00 with the latest patch version
+] sudo kubeadm upgrade node
+] kubectl drain k8s-worker1 --ignore-daemonsets
+] apt-mark unhold kubelet kubectl && \
+  apt-get update && apt-get install -y kubelet=1.25.x-00 kubectl=1.25.x-00 && \
+  apt-mark hold kubelet kubectl # replace x in 1.25.x-00 with the latest patch version
+] sudo systemctl daemon-reload
+] sudo systemctl restart kubelet
+] kubectl uncordon k8s-worker1
+] kubectl get nodes
+NAME          STATUS                     ROLES                  AGE    VERSION
+k8s-master    Ready                      control-plane,master   126d   v1.25.x
+k8s-worker1   Ready                      <none>                 126d   v1.25.x
+```
+
+
+
 # 2. Worker Node
 
-## 2.1. Creating Pod
+## 2.1. creating Pod
 
 ```
 ] kubectl create namespace ecommerce
@@ -58,7 +128,7 @@ volumes:
 ```
 
 
-## 2.2. Creating Static Pod
+## 2.2. creating Static Pod
 Static Pod : directly access to kubelet in worker node without control plane API
 ### yaml code extraction for web-pod
 ```
@@ -80,7 +150,7 @@ add saved output in the above step
 
 
 
-## 2.3. Creating Multi-container Pod
+## 2.3. creating Multi-container Pod
 
 ```
 ] kubectl run lab004 --image=nginx --dry-run=client -o yaml
@@ -98,7 +168,7 @@ spec:
 ```
 
 
-## 2.4. Creating Sidecar container
+## 2.4. creating Sidecar container
 
 Sidecar Container: built-in logging architecture  
 1) log /var/log/html in nginx container (main container)  
@@ -145,11 +215,11 @@ spec:
 
 
 
-## 2.5. Deployment & Pod Scale
+## 2.5. deployment & Pod Scale
 
 [scale reference docs](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#scale)
 
-### Pod scale out
+### pod scale out
 ```
 ] kubectl -n devops get pod deployments.apps
 ] kubectl -n devops scale deployment eshop-order --replicas=5
@@ -596,11 +666,11 @@ spec:
   - name: mypod
     image: redis
     volumeMounts:
-    - name: foo
+    - name: secret-data
       mountPath: "/secrets"
       readOnly: true
   volumes:
-  - name: foo
+  - name: secret-data
     secret:
       secretName: super-secret
       optional: true
@@ -630,4 +700,188 @@ spec:
 ] kubectl apply -f pod-secrets-via-env.yaml
 ] kubectl exec pod-secrets-via-env -- env
 ```
+
+
+
+## 2.17. configure ingress
+Ingress exposes HTTP and HTTPS routes from outside the cluster to services within the cluster. Traffic routing is controlled by rules defined on the Ingress resource.
+
+```
+] kubectl -n ingress-nginx get pod
+] kubectl -n ingress-nginx run nginx --image=nginx --labels=app=nginx --dry-run=client -o yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    app: nginx
+  name: nginx
+  namespace: ingress-nginx
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+] kubectl -n ingress-nginx run nginx --image=nginx --labels=app=nginx
+] kubectl -n ingress-nginx expose pod nginx --port=80 --target-port=80 --dry-run=client -o yaml
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: nginx
+  name: nginx
+  namespace: ingress-nginx
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: nginx
+status:
+  loadBalancer: {}
+] kubectl -n ingress-nginx expose pod nginx --port=80 --target-port=80
+] kubectl -n ingress-nginx get svc
+```
+
+### [ingress resource](https://kubernetes.io/docs/concepts/services-networking/ingress/#the-ingress-resource)
+```
+] kubectl -n ingress-nginx get svc # check port
+] vi app-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: ingress-nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    kubernetes.id/ingress.class: nginx
+spec:
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
+      - path: /app
+        pathType: Prefix
+        backend:
+          service:
+            name: appjs-service
+            port:
+              number: 80
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+] kubectl -n ingress-nginx apply -f app-ingress.yaml
+] kubectl -n ingress-nginx get ingress
+] kubectl get nodes # check node name
+] curl k8s-worker1:30080/
+] curl k8s-worker1:30080/app
+```
+
+
+
+## 2.18. create persistent volume 
+A [PersistentVolume](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistent-volumes) (PV) is a piece of storage in the cluster that has been provisioned by an administrator.
+A [PersistentVolumeClaim](https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim) (PVC) is a request for storage by a user.
+A [StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource) provides a way for administrators to describe the "classes" of storage they offer. It contains the fields provisioner, parameters, and reclaimPolicy, which are used when a PersistentVolume belonging to the class needs to be dynamically provisioned.
+
+
+### Types of Persistent Volumes 
+PersistentVolume types are implemented as plugins. Kubernetes currently supports the following plugins:
+
+cephfs - CephFS volume
+csi - Container Storage Interface (CSI)
+fc - Fibre Channel (FC) storage
+[hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath) - HostPath volume (for single node testing only; WILL NOT WORK in a multi-node cluster; consider using local volume instead)
+iscsi - iSCSI (SCSI over IP) storage
+local - local storage devices mounted on nodes.
+nfs - Network File System (NFS) storage
+rbd - Rados Block Device (RBD) volume
+
+
+```
+] vi app-config-pv.yaml
+] kubectl apply -f app-config-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: app-config
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: az-c
+  hostPath:
+    path: /srv/app-config
+] kubectl get pv
+NAME        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS     CLAIM     STORAGECLASS    REASON    AGE
+app-config  1Gi        RWX            Retain           Available            az-c                      5s
+```
+
+```
+] vi app-volume-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-volume
+spec:
+  storageClassName: app-hostpath-sc
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Mi
+] kubectl apply -f app-volume-pvc.yaml
+] kubectl get pvc # since no 10Mi, allot 1Gi
+NAMESPACE       NAME                  STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS        AGE
+default         app-volume            Bound    pv1      1Gi        ROX,RWX        app-hostpaht-sc     5s
+] kubectl get pv # status to Bound
+NAME        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS     CLAIM               STORAGECLASS    REASON    AGE
+pv1         1Gi        ROX,RWX        Recycle          Bound      default/app-volume  app-hostpath-sc           5m
+```
+
+### [claim as volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#claims-as-volumes)
+```
+] vi web-server-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-server-pod
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+      volumeMounts:
+      - mountPath: "/usr/share/nginx/html"
+        name: mypd
+  volumes:
+    - name: mypd
+      persistentVolumeClaim:
+        claimName: app-volume
+] kubectl apply -f web-server-pod.yaml
+] kubectl describe pod web-server-pod
+```
+
+
+## 2.19. [viewing and finding resources](https://kubernetes.io/docs/reference/kubectl/cheatsheet/#viewing-and-finding-resources)
+
+```
+] kubectl get pv --sort-by=.metadata.name
+] kubectl get pv --sort-by=.metadata.name > /var/CKA2023/my_volumes
+```
+
+
+
+
+
 
