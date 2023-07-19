@@ -116,6 +116,36 @@ k8s-master    Ready                      control-plane,master   126d   v1.25.x
 k8s-worker1   Ready                      <none>                 126d   v1.25.x
 ```
 
+## 1.3. diagnosis and troubleshooting worker node
+
+```
+] ssh k8s-wocker1
+] sudo -i
+] systemctl status docker
+enabled
+] systemctl status kubelet
+disabled
+] systemctl enable --now kubelet
+] systemctl status kubelet
+enabled
+```
+
+```
+] kubectl get pod -n kube-system -o wide # check CNI, kube-proxy
+flannel or calico is running
+kube-proxy is running
+] kubectl get nodes # worker node should be ready
+```
+
+```
+] ssh k8s-wocker1
+] sudo -i
+] systemctl status docker
+inactive
+] systemctl enable --now docker
+] 
+```
+
 
 
 # 2. Worker Node
